@@ -6,8 +6,8 @@ It works like kind of like `pdb` where you set breakpoints and step through the 
 It also borrows the expression evaluation feature from Thonny, where you can see how
 a line will evaluate (with some caveats).
 
-We use this in our Software Development program at Dixie Tech to help teach students
-Python basics as well as help familiarize them with the terminal.
+The main purpose of this project is to help teach students Python basics as well as
+help them become familiar with the terminal.
 
 ## Install
 
@@ -23,6 +23,13 @@ navigate into it and install the tool:
 git clone <repo>
 cd <repo>
 uv tool install .
+```
+
+To install updates, just pull the changes and then reinstall with uv:
+
+```
+git pull
+uv tool install . --reinstall
 ```
 
 ## Panels
