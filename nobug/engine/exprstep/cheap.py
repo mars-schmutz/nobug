@@ -1,13 +1,13 @@
 """Cheap expression resolution: evaluate side-effect-free fragments.
 
-Parse the current source line, find every **side-effect-free** sub-expression,
-and evaluate it against the live frame. This shows how the pieces of the line
-resolve *with the current state, before the line executes* — which is exactly
-what a step debugger pauses at. It deliberately does not run anything that
-could have side effects (no awaits, yields, or walrus assignments), so
-inspecting never changes the program — with one narrow exception: calls to the
-whitelisted *pure builtins* in :data:`_PURE_BUILTIN_NAMES` are run, so a line
-like ``str(x / y)`` can finish resolving (see README "Pure-builtin previews").
+Parse the current source line, find every side-effect-free sub-expression, and
+evaluate it against the live frame. This shows how the pieces of the line
+resolve with the current state, before the line executes, which is the point a
+step debugger pauses at. It won't run anything that could have side effects (no
+awaits, yields, or walrus assignments), so inspecting never changes the program.
+The one exception: calls to the whitelisted pure builtins in
+:data:`_PURE_BUILTIN_NAMES` are run, so a line like ``str(x / y)`` can finish
+resolving (see README "Pure-builtin previews").
 """
 
 from __future__ import annotations
@@ -18,9 +18,9 @@ import inspect
 
 from ..state import ExprStep, short_repr
 
-# Node types worth explaining. A general call is absent — we show its
-# *arguments* (their own nodes), not the call — but a whitelisted pure-builtin
-# call is treated as interesting too (see _is_pure_call) so it can resolve.
+# Node types worth explaining. A general call is absent: we show its arguments
+# (their own nodes), not the call itself. A whitelisted pure-builtin call counts
+# as interesting too (see _is_pure_call) so it can resolve.
 _INTERESTING = (
     ast.Name,
     ast.Attribute,
@@ -36,16 +36,16 @@ _INTERESTING = (
 # Calls are judged separately (a pure-builtin call is allowed; any other isn't).
 _UNSAFE = (ast.Await, ast.Yield, ast.YieldFrom, ast.NamedExpr)
 
-# Builtins cheap eval may *call* when previewing a line. Each computes a value
-# from its arguments without mutating them and takes no callback, so running
-# one to show its result is conventionally free of side effects.
+# Builtins cheap eval may call when previewing a line. Each computes a value
+# from its arguments without mutating them and takes no callback, so running one
+# to show its result is normally free of side effects.
 #
-# Two caveats, documented in the README so an override doesn't surprise anyone:
-#   * Shadowing one of these names (``str = my_func``) disables its preview —
-#     the identity check in _is_pure_call fails, so cheap eval skips the call
-#     rather than run the override.
+# Two caveats, also in the README so an override doesn't surprise anyone:
+#   * Shadowing one of these names (``str = my_func``) disables its preview. The
+#     identity check in _is_pure_call fails, so cheap eval skips the call rather
+#     than run the override.
 #   * A value's own ``__str__``/``__repr__``/``__len__``/``__format__``/... is
-#     user code that these builtins still invoke; a side-effecting dunder will
+#     user code that these builtins still invoke, so a side-effecting dunder will
 #     run during a preview.
 _PURE_BUILTIN_NAMES = frozenset({
     "abs", "ascii", "bin", "bool", "chr", "float", "format",
@@ -61,8 +61,8 @@ def _is_pure_call(node: ast.Call, frame) -> bool:
 
     Only a bare ``Name`` callee qualifies: resolving it is a plain namespace
     lookup with no side effects, whereas an attribute callee would trigger
-    ``__getattribute__``. Identity (``is``) — never ``==``/``in`` — so testing
-    a shadowed name can't run a user ``__eq__``/``__hash__``.
+    ``__getattribute__``. The match uses ``is`` rather than ``==``/``in``, so
+    testing a shadowed name can't run a user ``__eq__``/``__hash__``.
     """
     if not isinstance(node.func, ast.Name):
         return False
@@ -92,8 +92,8 @@ def _safe_eval(node: ast.expr, frame) -> object:
     """Evaluate *node* against *frame*, or return ``_UNRESOLVED``.
 
     Returns ``_UNRESOLVED`` if evaluation raises (undefined name, bad index,
-    ...) or if the result is a function/class/builtin/module — the kinds of
-    values that are noise in the teaching panel rather than a resolved step.
+    ...) or if the result is a function/class/builtin/module. Those are noise
+    in the teaching panel rather than a resolved step.
     """
     try:
         code = compile(ast.Expression(body=node), "<nobug-expr>", "eval")
@@ -115,7 +115,7 @@ def resolve_line(source_line: str, frame) -> list[ExprStep]:
     try:
         tree = ast.parse(stripped.rstrip(), mode="exec")
     except SyntaxError:
-        # A continuation of a multi-line statement won't parse alone — skip it.
+        # A continuation of a multi-line statement won't parse alone, so skip it.
         return []
 
     steps: list[ExprStep] = []
@@ -157,8 +157,9 @@ def resolve_line(source_line: str, frame) -> list[ExprStep]:
             )
         )
 
-    # Left-to-right, operands before their result — Python's own evaluation
-    # order. End column sorts post-order; width breaks ties (inner first).
+    # Left-to-right, operands before their result, matching Python's own
+    # evaluation order. End column sorts post-order, width breaks ties (inner
+    # first).
     steps.sort(key=lambda s: (s.end_col, s.end_col - s.col))
     return steps
 
@@ -169,12 +170,12 @@ _RESULT_TARGETS = (ast.Name, ast.Attribute, ast.Subscript)
 
 
 def resolve_line_result(source_line: str, frame) -> ExprStep | None:
-    """The predicted *result* of an assignment line, as a single ``ExprStep``.
+    """The predicted result of an assignment line, as a single ``ExprStep``.
 
     For ``target = <expr>`` (and the annotated/augmented forms), this evaluates
     the right-hand side against the live frame and returns what ``target`` will
-    become once the line runs — the final ``⇒ target = value`` step. It only
-    predicts side-effect-free right-hand sides, so (like ``resolve_line``) it
+    become once the line runs: the final ``⇒ target = value`` step. Like
+    ``resolve_line``, it only predicts side-effect-free right-hand sides, so it
     never executes calls and never changes the program. Returns ``None`` when
     the line isn't a single-target assignment with a resolvable value.
     """
@@ -197,7 +198,7 @@ def resolve_line_result(source_line: str, frame) -> ExprStep | None:
     elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
         target, value_expr = stmt.target, stmt.value
     elif isinstance(stmt, ast.AugAssign) and isinstance(stmt.target, ast.Name):
-        # "x += 1" resolves to "x + 1" — read the target, then apply the op.
+        # "x += 1" resolves to "x + 1": read the target, then apply the op.
         target = stmt.target
         load = ast.copy_location(ast.Name(id=stmt.target.id, ctx=ast.Load()), stmt.target)
         value_expr = ast.fix_missing_locations(

@@ -47,16 +47,23 @@ uv tool install . --reinstall
 nobug mostly uses pdb commands and uses vim commands for navigation
 gaps. Press `?` in the app for the full list.
 
-| Key       | Action                       |     | Key                                      | Action              |
-| --------- | ---------------------------- | --- | ---------------------------------------- | ------------------- |
-| `s`       | step into                    |     | `j`/`k`                                  | move cursor down/up |
-| `n`       | step over                    |     | `gg`/`G`                                 | top / bottom        |
-| `r`       | step out                     |     | `ctrl+d`/`ctrl+u`                        | half-page           |
-| `c`       | continue                     |     | `ctrl+w h/j/k/l`, `TAB`, or mouse clicks | move panel focus    |
-| `b`       | breakpoint at cursor         |     | `/` then `ctrl+n`/`ctrl+p`               | search              |
-| `u`/`d`   | stack frame up/down          |     | `q`                                      | quit                |
-| `p` / `P` | print / pin expression       |     | `:`                                      | command bar         |
-| `e`       | resolve current line in-line |     |                                          |                     |
+| Key                                      | Action                       |
+| ---------------------------------------- | ---------------------------- |
+| `s`                                      | step into                    |
+| `n`                                      | step over                    |
+| `r`                                      | step out                     |
+| `c`                                      | continue                     |
+| `b`                                      | breakpoint at cursor         |
+| `u`/`d`                                  | stack frame up/down          |
+| `p` / `P`                                | print / pin expression       |
+| `e`                                      | resolve current line in-line |
+| `j`/`k`                                  | move cursor down/up          |
+| `gg`/`G`                                 | top / bottom                 |
+| `ctrl+d`/`ctrl+u`                        | half-page                    |
+| `ctrl+w h/j/k/l`, `TAB`, or mouse clicks | move panel focus             |
+| `/` then `ctrl+n`/`ctrl+p`               | search                       |
+| `q`                                      | quit                         |
+| `:`                                      | command bar                  |
 
 The `:` command bar accepts other pdb commands: `:break 42 if x > 3`, `:until`,
 `:display EXPR`, `:undisplay EXPR`, `:print EXPR`, `:clear N`, `:where`/`:bt`,
@@ -83,11 +90,11 @@ Two cases worth knowing about if the preview isn't what you expect:
   you rebind one of these names (`str = my_formatter`, a local `len`, an import,
   etc.), nobug sees that the name no longer points at the real builtin and
   skips evaluating that call rather than running your version.
-- **Your own dunders still run.** These builtins call into a value's `__str__`,
-  `__repr__`, `__len__`, `__format__`, `__bool__`, and so on, which is your
-  code. So previewing `str(obj)` runs `obj.__str__`, and if that method has side
-  effects, they happen during the preview. Calls whose arguments aren't
-  free of side effects (`str(items.pop())`) aren't previewed.
+- **User-defined dunder functions/methods still run.** These builtins call into a value's `__str__`,
+  `__repr__`, `__len__`, `__format__`, `__bool__`, and so on. So previewing `str(obj)`
+  runs `obj.__str__`, and if that method has side
+  effects, they happen during the preview. Calls whose arguments have
+  side effects (`str(items.pop())`) aren't previewed.
 
 Everything else (user-defined functions, non-whitelisted builtins) isn't run early.
 Their real return values show up in the last evaluated view after you step
@@ -106,8 +113,7 @@ dependencies (`fastapi`, etc.) work. In order it looks for:
 If it finds none, it runs against the plain interpreter. Whichever it picks is
 noted in the console at startup. Because nobug borrows the venv's packages rather
 than relaunching under its interpreter, a venv built for a different Python
-version than the one running nobug may fail to import compiled packages. nobug
-warns you when it spots this.
+version than the one running nobug may fail to import compiled packages.
 
 ## Other Limitations
 

@@ -1,8 +1,8 @@
 """Thread-safe breakpoint store.
 
-The UI thread mutates this; the debuggee thread reads it from inside the trace
-hook — hence the lock. Files are keyed by real path so a breakpoint set from
-the UI matches the filename CPython reports for a frame.
+The UI thread mutates this while the debuggee thread reads it from inside the
+trace hook, hence the lock. Files are keyed by real path so a breakpoint set
+from the UI matches the filename CPython reports for a frame.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import threading
 
 
 def normalize(path: str) -> str:
-    """Canonical key for a source file, shared by every filename comparison."""
+    """Canonical key for a source file. Every filename comparison goes through it."""
     return os.path.realpath(path)
 
 
@@ -39,11 +39,19 @@ class Breakpoints:
         with self._lock:
             self._points.pop((normalize(file), line), None)
 
-    def lines_for(self, file: str) -> set:
+    def lines_for(self, file: str) -> set[int]:
         """Line numbers with a breakpoint in *file* (for the source gutter)."""
         target = normalize(file)
         with self._lock:
             return {line for (f, line), _ in self._points.items() if f == target}
+
+    def snapshot(self) -> dict[tuple[str, int], str | None]:
+        with self._lock:
+            return dict(self._points)
+
+    def restore(self, points: dict[tuple[str, int], str | None]) -> None:
+        with self._lock:
+            self._points = dict(points)
 
     def hits(self, file: str, line: int, frame) -> bool:
         """Whether execution at (file, line) should break in this *frame*."""

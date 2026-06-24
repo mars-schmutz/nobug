@@ -1,6 +1,6 @@
 """The debug engine: tracing, breakpoints, watches, and expression resolution.
 
 Nothing in this package imports the UI. The engine speaks only in the
-dataclasses defined in ``state.py`` and the ``Command`` enum in ``commands.py``,
-which keeps the door open to an alternative frontend later.
+dataclasses from ``state.py`` and the ``Command`` enum from ``commands.py``, so
+a different frontend could sit on top of it later.
 """

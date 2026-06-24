@@ -1,4 +1,4 @@
-"""DebugSession — owns the debuggee thread and assembles pauses.
+"""DebugSession: owns the debuggee thread and assembles pauses.
 
 Public surface used by the UI:
 
@@ -85,7 +85,7 @@ class DebugSession:
         self._frame = None            # current frame while paused (UI evals against it)
         self._paused = False
         self._finished = False
-        self._source_cache: dict = {}
+        self._source_cache: dict[str, list[str]] = {}
         self._thread: threading.Thread | None = None
         self._terminate = threading.Event()  # set by terminate() to unwind the run
 
@@ -118,7 +118,7 @@ class DebugSession:
         Used by in-app restart. Wakes the thread whether it's paused at a line
         (via a QUIT command) or blocked on stdin (via the input event), so its
         ``finally`` in ``_run`` runs and restores sys.stdout/argv before a fresh
-        session installs its own — preventing a leaked thread per restart.
+        session installs its own, which keeps each restart from leaking a thread.
         """
         if self._finished or self._thread is None:
             return
@@ -279,10 +279,10 @@ class DebugSession:
     def _ran_collapse(self):
         """The line a step-over just executed, resolved with real values.
 
-        The recorder captures values *as* a line runs, so right after stepping
+        The recorder captures values while a line runs, so right after stepping
         over a line its entries are current. We surface the full collapse only
-        when that line held a call (or other expression the live prediction
-        can't show) — otherwise the predictions already covered it.
+        when that line held a call (or some other expression the live prediction
+        can't show); otherwise the predictions already covered it.
         """
         if (
             self._last_resume != Command.STEP_OVER
@@ -299,11 +299,11 @@ class DebugSession:
     def _expr_steps(self, line_text: str, line: int, frame):
         """Sub-expressions of the line about to run, evaluated live.
 
-        We pause *before* a line runs, so the recorder's captures for this line
-        are from its previous execution (a prior loop iteration) — stale. Only
-        the live prediction reflects the line about to run, so the per-step
-        panel uses it alone. Recorded call results, which exist only after the
-        line runs, surface in the post-execution view instead.
+        We pause before a line runs, so the recorder's captures for this line
+        are stale: they come from its previous execution (a prior loop
+        iteration). Only the live prediction reflects the line about to run, so
+        the per-step panel uses it alone. Recorded call results, which exist
+        only after the line runs, surface in the post-execution view instead.
         """
         if not line_text:
             return []

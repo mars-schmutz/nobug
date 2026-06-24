@@ -1,7 +1,7 @@
 """The thread-safe bridge between the debuggee thread and the UI thread.
 
-The debuggee runs in its own thread. When the tracer decides to pause, it puts
-a :class:`~nobug.engine.state.PauseState` on a queue and blocks the debuggee
+The debuggee runs in its own thread. When the tracer pauses, it puts a
+:class:`~nobug.engine.state.PauseState` on a queue and blocks the debuggee
 thread on an event (a blocked thread releases the GIL, so the UI stays
 responsive). The UI drains the queue, renders, and when the user steps it sends
 the next command back, which wakes the debuggee.

@@ -1,17 +1,16 @@
 """The stepping core, built on ``sys.settrace``.
 
 settrace works on every supported CPython (3.9+) and on Linux and macOS alike.
-``sys.monitoring`` (3.12+) would lower overhead and is the natural future
-optimization, hidden behind this same class.
+Moving to ``sys.monitoring`` (3.12+) would cut overhead, and it could hide
+behind this same class, but it isn't done yet.
 
-Stepping is expressed purely in terms of *frame depth*, measured by walking
-``f_back`` to the bottom frame. That keeps the logic independent of which
-frames we choose to trace:
+Stepping is expressed in terms of frame depth, measured by walking ``f_back``
+to the bottom frame. That keeps the logic independent of which frames we trace:
 
-* step into  — stop at the next user line anywhere
-* step over  — stop at the next user line at this depth or shallower
-* step out   — stop at the next user line strictly shallower than this one
-* continue   — stop only at a breakpoint (or a one-shot "run to" target)
+* step into: stop at the next user line anywhere
+* step over: stop at the next user line at this depth or shallower
+* step out:  stop at the next user line strictly shallower than this one
+* continue:  stop only at a breakpoint (or a one-shot "run to" target)
 """
 
 from __future__ import annotations
@@ -27,9 +26,9 @@ from .commands import Command
 class DebuggeeExit(BaseException):
     """Raised inside the debuggee to unwind it on QUIT.
 
-    A ``BaseException`` (not ``Exception``) so the target program's own
-    ``except Exception`` handlers can't swallow the teardown, the same way
-    ``KeyboardInterrupt``/``SystemExit`` pass through.
+    A ``BaseException`` rather than ``Exception``, so the target program's own
+    ``except Exception`` handlers can't swallow the teardown. ``KeyboardInterrupt``
+    and ``SystemExit`` pass through for the same reason.
     """
 
 

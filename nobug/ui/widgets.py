@@ -1,12 +1,12 @@
 """Panel widgets and the shared value-formatting helpers.
 
-``InfoPanel`` is the one reusable scrollable+titled panel used by the watch,
-stack/locals, and expression views — fed different rendered text. ``SourceView``
-is the only bespoke panel because it needs a gutter (breakpoint/current/cursor
-markers) and a movable cursor.
+``InfoPanel`` is the reusable scrollable, titled panel behind the watch,
+stack/locals, and expression views, each fed different rendered text.
+``SourceView`` is the one bespoke panel, since it needs a gutter
+(breakpoint/current/cursor markers) and a movable cursor.
 
-The ``format_*`` functions are the single source of truth for turning engine
-dataclasses into Rich renderables, so every panel renders values identically.
+The ``format_*`` functions turn engine dataclasses into Rich renderables. Every
+panel goes through them, so values render the same way everywhere.
 """
 
 from __future__ import annotations
@@ -91,10 +91,10 @@ def format_stack(stack: list[FrameSnapshot], selected: int) -> Text:
 def _append_steps(text: Text, steps: list[ExprStep], active: int = -1) -> None:
     """Render an innermost-first step list, with the "→" column aligned.
 
-    When *active* >= 0 it is the count of steps already resolved by the in-line
-    ("e") walk, so the panel tracks the same position: resolved steps get a ``✓``
-    and the one about to be evaluated a ``▶`` pointer. *active* < 0 disables the
-    markers (used for the already-executed "last evaluated" list).
+    When *active* >= 0 it's the count of steps already resolved by the in-line
+    ("e") walk, so the panel tracks the same position: resolved steps get a
+    ``✓`` and the one about to be evaluated a ``▶`` pointer. A negative *active*
+    turns the markers off (used for the already-executed "last evaluated" list).
     """
     width = max((len(s.text) for s in steps), default=0)
     for i, step in enumerate(steps, 1):
@@ -119,17 +119,17 @@ def format_expr(
     ran_steps: list[ExprStep] | None = None,
     active: int = -1,
 ) -> Text:
-    """Render the line and the steps that resolve it, left-to-right.
+    """Render the line and the steps that resolve it, left to right.
 
-    The straight source line sits on top; each numbered step shows one
+    The plain source line sits on top. Each numbered step shows one
     sub-expression resolving to its value (``nums → ...``, ``i → 2``, then
     ``nums[i] → 30``), so the reader can follow the build-up to the whole
     expression. For an assignment, a final ``⇒ target = value`` line shows what
     the line produces.
 
-    *active* is the in-line ("e") progress (count of steps resolved) so the
+    *active* is the in-line ("e") progress (count of steps resolved), so the
     panel can point a ``▶`` at the sub-expression about to be evaluated and tick
-    off the resolved ones; < 0 leaves the list unmarked.
+    off the resolved ones. A negative value leaves the list unmarked.
 
     When *ran_steps* is given, a "last evaluated" section shows the line a
     step-over just ran, collapsed to its real values (including call results).
@@ -160,18 +160,18 @@ def substitute_inline(
 ) -> tuple[str, tuple[int, int] | None, str | None, list[tuple[int, int]]]:
     """Apply the first *count* resolved steps to *line_text*, Thonny-style.
 
-    The in-line counterpart of :func:`format_expr`: both render the same
+    The in-line counterpart of :func:`format_expr`; both render the same
     innermost-first ``ExprStep`` list. Each step replaces its source span with
-    its ``value_text``; as *count* grows the line collapses outward until the
-    widest span — the whole right-hand side — replaces everything.
+    its ``value_text``, and as *count* grows the line collapses outward until
+    the widest span (the whole right-hand side) replaces everything.
 
     Returns the substituted line, a ``(start, end)`` span into it to highlight,
     a *kind*, and the spans of values already resolved on the line (so the UI
-    can colour evaluated values apart from the un-evaluated rest). *kind* is
-    ``"next"`` when the highlight span is the sub-expression ``e`` will resolve
-    on the following press (previewed before it runs, like the source line), or
-    ``"result"`` when every resolvable step has been applied and the span is the
-    final value. ``(line_text, None, None, [])`` when nothing applied.
+    can colour evaluated values apart from the rest). *kind* is ``"next"`` while
+    the highlight span is the sub-expression ``e`` will resolve on the following
+    press (previewed before it runs, like the source line), and ``"result"``
+    once every resolvable step has been applied and the span is the final value.
+    Returns ``(line_text, None, None, [])`` when nothing applied.
     """
     applied = steps[:count]
     if not applied:
@@ -252,7 +252,7 @@ class SourceView(VerticalScroll):
         self.lines: list[str] = []
         self.current_line: int | None = None
         self.cursor_line: int = 1
-        self._breakpoints: set = set()
+        self._breakpoints: set[int] = set()
         self._inline_line: int | None = None
         self._inline_text: str = ""
         self._inline_hl: tuple[int, int] | None = None

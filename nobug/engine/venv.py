@@ -1,8 +1,8 @@
 """Locate a virtual environment so the debuggee's imports resolve against it.
 
 The debuggee runs in-process (``DebugSession`` execs it in this interpreter), so
-"using" a venv means adding its ``site-packages`` to ``sys.path`` for the run,
-not switching interpreters — switching would require nobug itself to be
+"using" a venv means adding its ``site-packages`` to ``sys.path`` for the run
+rather than switching interpreters. Switching would mean nobug itself had to be
 installed in the target venv, on a possibly-incompatible Python.
 """
 

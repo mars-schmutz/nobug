@@ -1,35 +1,35 @@
-"""The keymap — single source of truth for every binding.
+"""The keymap. Every binding lives here.
 
-Philosophy (PROJECT_PLAN §6): debugger shortcuts first, vim for navigation.
-The debug-control keys come straight from pdb's single letters so the muscle
-memory transfers to pdb/gdb; vim fills only the navigation gaps.
+Debugger shortcuts come first, vim handles navigation. The debug-control keys
+are pdb's single letters so the muscle memory transfers to pdb/gdb, and vim
+fills in the navigation gaps those letters leave.
 
-Each map is ``token -> action name``. A *token* is the printable character
-(so case is preserved: ``G`` vs ``g``) or, for control keys, the Textual key
-name (``ctrl+d``). The App turns action names into method calls, so rebinding
-is just editing these dicts.
+Each map is ``token -> action name``. A token is the printable character (case
+matters, ``G`` vs ``g``), or for control keys the Textual key name (``ctrl+d``).
+The App turns action names into method calls, so rebinding means editing these
+dicts.
 """
 
 from __future__ import annotations
 
-# Debug control — pdb/gdb single-letter commands. These never collide with the
+# Debug control: pdb/gdb single-letter commands. None of these collide with the
 # vim motion keys below.
 DEBUG_KEYS = {
     "s": "step_into",          # pdb s
     "n": "step_over",          # pdb n
     "r": "step_out",           # pdb r (gdb finish)
     "c": "continue_",          # pdb c
-    "b": "toggle_breakpoint",  # pdb b — at the source cursor line
-    "p": "print_expr",         # pdb p — opens ':print '
+    "b": "toggle_breakpoint",  # pdb b, at the source cursor line
+    "p": "print_expr",         # pdb p, opens ':print '
     "P": "pin_expr",           # opens ':display '
     "e": "eval_inline",        # step the current line's sub-exprs in-line (Thonny-style)
-    "u": "frame_up",           # pdb u — toward the caller
-    "d": "frame_down",         # pdb d — toward the callee
+    "u": "frame_up",           # pdb u, toward the caller
+    "d": "frame_down",         # pdb d, toward the callee
     "q": "quit",               # pdb q
     "?": "help",
 }
 
-# Navigation — vim, filling the gaps the debugger letters leave.
+# Navigation: vim, filling the gaps the debugger letters leave.
 NAV_KEYS = {
     "j": "cursor_down",
     "k": "cursor_up",

@@ -1,8 +1,8 @@
 """Expression resolution via AST instrumentation.
 
-Rewrites the program so every interesting sub-expression reports its *actual*
-value as the line executes — the only way to capture function-call results,
-which evaluating side-effect-free fragments against a paused frame cannot do.
+Rewrites the program so every interesting sub-expression reports its real value
+as the line executes. This is how we capture function-call results, which
+evaluating side-effect-free fragments against a paused frame can't reach.
 
 Each chosen node ``N`` is replaced by ``__nobug_record__(N, id)``, a call that
 stores the value and returns it unchanged. Passing the value straight through
@@ -10,12 +10,16 @@ preserves evaluation order, ``and``/``or`` short-circuiting, and exceptions: a
 fragment that never runs simply never records. Captures are keyed by source
 span, so the resolver turns them into :class:`~nobug.engine.state.ExprStep`s.
 
-Constructs where wrapping would change meaning or fail to compile are recorded
-only at their top level, never descended into: comprehension/generator/lambda
-bodies (own scopes), f-string internals (format-spec quoting), and ``match``
-patterns (a ``Call`` is not a valid pattern). Assignment/deletion targets are
-never wrapped. A construct that still breaks compilation is the caller's
-problem to catch — it falls back to the original, uninstrumented code.
+Some constructs are recorded only at their top level and never descended into,
+because wrapping inside them would change meaning or fail to compile:
+
+* comprehension/generator/lambda bodies have their own scopes
+* f-string internals would break format-spec quoting
+* a ``Call`` is not a valid ``match`` pattern
+
+Assignment and deletion targets are never wrapped. If a construct still breaks
+compilation, that's the caller's problem to catch; it falls back to the
+original, uninstrumented code.
 """
 
 from __future__ import annotations
@@ -31,8 +35,9 @@ RECORDER_NAME = "__nobug_record__"
 # (lineno, col_offset, end_col_offset) into the original source.
 Span = tuple[int, int, int]
 
-# Node types the live predictor (cheap.resolve_line) can't show — calls and
-# other opaque expressions — so a recorded value for one is "new information".
+# Node types the live predictor (cheap.resolve_line) can't show, like calls and
+# other opaque expressions. A recorded value for one of these is new
+# information the prediction couldn't have given.
 _OPAQUE_TYPES = (
     ast.Call,
     ast.IfExp,
@@ -136,9 +141,9 @@ class Recorder:
     """Holds the latest recorded value per node id, and renders ExprSteps.
 
     Injected into the debuggee's globals under :data:`RECORDER_NAME`.
-    ``__call__`` stays trivial (no ``repr``, no iteration) so it adds minimal
-    overhead and can't re-enter the tracer via a user ``__repr__``; values are
-    rendered lazily, at pause time, under the tracer's re-entrancy guard.
+    ``__call__`` does no ``repr`` or iteration, so it stays cheap and can't
+    re-enter the tracer through a user ``__repr__``. Values are rendered lazily,
+    at pause time, under the tracer's re-entrancy guard.
     """
 
     def __init__(self, spans: dict[int, tuple[Span, str, bool]]) -> None:
@@ -146,14 +151,14 @@ class Recorder:
         self._values: dict[int, object] = {}
 
     def __call__(self, value: object, node_id: int) -> object:
-        # Latest write wins — the most recent execution of this span.
+        # Latest write wins, i.e. the most recent execution of this span.
         self._values[node_id] = value
         return value
 
     def steps_for_line(self, lineno: int) -> list[ExprStep]:
         """ExprSteps for every recorded span on *lineno*, innermost first."""
         out: list[ExprStep] = []
-        seen: set = set()
+        seen: set[tuple[int, int]] = set()
         for node_id, ((ln, col, end), text, is_opaque) in self._spans.items():
             if ln != lineno or node_id not in self._values:
                 continue
@@ -182,8 +187,8 @@ def instrument_source(source: str, filename: str) -> tuple[object, Recorder]:
 
     Returns ``(code_object, recorder)``; the recorder must be injected into the
     execution globals under :data:`RECORDER_NAME` before the code runs. Raises
-    on malformed input, like ``ast.parse``/``compile`` — callers should catch
-    and fall back to the original source.
+    on malformed input, like ``ast.parse``/``compile`` do, so callers should
+    catch and fall back to the original source.
     """
     transformer = _Instrumentor(source.splitlines())
     new_tree = transformer.visit(ast.parse(source, filename=filename, mode="exec"))

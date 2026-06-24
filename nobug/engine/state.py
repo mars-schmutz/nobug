@@ -1,16 +1,16 @@
 """Plain data passed from the engine to the UI at each pause.
 
-These dataclasses are the entire engine→UI contract. They hold *rendered*
-values (see :class:`ValueRepr`), computed while the engine still holds the live
-objects, so the UI never touches a raw debuggee object — and so a future
-out-of-process frontend could serialize these structures unchanged.
+These dataclasses are the whole engine-to-UI interface. They carry already
+rendered values (see :class:`ValueRepr`), computed while the engine still holds
+the live objects, so the UI never touches a raw debuggee object. That also lets
+an out-of-process frontend serialize these structures unchanged later on.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-# Rendering limits — keep captures bounded so a huge or cyclic object can never
+# Rendering limits. Keep captures bounded so a huge or cyclic object can't
 # stall the debugger or blow up the UI.
 MAX_STR = 150
 MAX_ITEMS = 50
@@ -37,11 +37,22 @@ class ValueRepr:
     children: list[tuple[str, "ValueRepr"]] | None = None
 
 
+def _container_items(value: object) -> list[tuple[str, object]] | None:
+    """The (label, child) pairs to recurse into, or None if *value* is a leaf."""
+    if isinstance(value, dict):
+        return [(short_repr(k, 40), v) for k, v in list(value.items())[:MAX_ITEMS]]
+    if isinstance(value, (list, tuple)) and not isinstance(value, (str, bytes, bytearray)):
+        return [(str(i), v) for i, v in enumerate(list(value)[:MAX_ITEMS])]
+    if isinstance(value, (set, frozenset)):
+        return [("•", v) for v in list(value)[:MAX_ITEMS]]
+    return None
+
+
 def describe(value: object, depth: int = 0, _seen: frozenset | None = None) -> ValueRepr:
     """Render *value* into a :class:`ValueRepr`, one container level at a time.
 
-    Single source of truth for value rendering — locals, watches, and on-demand
-    evaluation all go through here so they look identical everywhere.
+    Locals, watches, and on-demand evaluation all render through here, so a
+    value looks the same wherever it shows up.
     """
     if _seen is None:
         _seen = frozenset()
@@ -52,31 +63,14 @@ def describe(value: object, depth: int = 0, _seen: frozenset | None = None) -> V
     vid = id(value)
     children: list[tuple[str, ValueRepr]] | None = None
     try:
-        if isinstance(value, dict):
+        items = _container_items(value)
+        if items is not None:
             if vid in _seen:
-                return vr
+                return vr  # cycle: stop at the leaf repr
             seen = _seen | {vid}
-            children = [
-                (short_repr(k, 40), describe(v, depth + 1, seen))
-                for k, v in list(value.items())[:MAX_ITEMS]
-            ]
-        elif isinstance(value, (list, tuple)) and not isinstance(value, (str, bytes, bytearray)):
-            if vid in _seen:
-                return vr
-            seen = _seen | {vid}
-            children = [
-                (str(i), describe(v, depth + 1, seen))
-                for i, v in enumerate(list(value)[:MAX_ITEMS])
-            ]
-        elif isinstance(value, (set, frozenset)):
-            if vid in _seen:
-                return vr
-            seen = _seen | {vid}
-            children = [
-                ("•", describe(v, depth + 1, seen)) for v in list(value)[:MAX_ITEMS]
-            ]
+            children = [(label, describe(v, depth + 1, seen)) for label, v in items]
     except Exception:
-        children = None  # iteration over a hostile object — degrade to the leaf repr
+        children = None  # iteration over a hostile object: degrade to the leaf repr
 
     if children:
         vr.children = children
@@ -87,8 +81,8 @@ def describe(value: object, depth: int = 0, _seen: frozenset | None = None) -> V
 class FrameSnapshot:
     """One frame in the call stack at a pause, with its own locals.
 
-    Per-frame locals are what let the UI walk the stack with ``u``/``d`` and
-    show each frame's variables, exactly like pdb.
+    Per-frame locals let the UI walk the stack with ``u``/``d`` and show each
+    frame's variables, the way pdb does.
     """
 
     func: str
@@ -141,7 +135,7 @@ class PauseState:
     # The predicted "⇒ target = value" final step for an assignment line, if any.
     line_result: ExprStep | None = None
     # The line a step-over just executed, resolved with real values (incl. call
-    # results). Populated only when that line contained a call; empty otherwise.
+    # results). Set only when that line contained a call, empty otherwise.
     ran_line_text: str = ""
     ran_steps: list[ExprStep] = field(default_factory=list)
     message: str = ""                 # used by "finished"/"exception"

@@ -401,39 +401,30 @@ class NobugApp(App):
         # Stash the visual prefix as the border title so the user sees the mode.
         cmd.border_title = prefix
 
-    def _close_input(self) -> None:
-        if self._input_mode == "stdin":
-            # Cancelling stdin feeds an empty line so the program isn't wedged.
-            self.session.provide_input("")
+    def _dismiss_input(self) -> None:
+        """Hide the command bar and return focus to the source."""
         self._input_mode = None
         self.cmd.value = ""
         self.cmd.styles.display = "none"
         self.source.focus()
 
+    def _close_input(self) -> None:
+        if self._input_mode == "stdin":
+            # Cancelling stdin feeds an empty line so the program isn't wedged.
+            self.session.provide_input("")
+        self._dismiss_input()
+
     def on_input_submitted(self, event: Input.Submitted) -> None:
         mode = self._input_mode
         text = event.value
+        self._dismiss_input()
         if mode == "stdin":
             self.session.provide_input(text)
             self.out.write(f"<input> {text}")
-            self._input_mode = None
-            self.cmd.value = ""
-            self.cmd.styles.display = "none"
-            self.source.focus()
-            return
-        if mode == "search":
-            self._input_mode = None
-            self.cmd.value = ""
-            self.cmd.styles.display = "none"
-            self.source.focus()
+        elif mode == "search":
             if text:
                 self._do_search(text)
-            return
-        self._input_mode = None
-        self.cmd.value = ""
-        self.cmd.styles.display = "none"
-        self.source.focus()
-        if text.strip():
+        elif text.strip():
             self._run_command(text.strip())
 
     def _run_command(self, text: str) -> None:
@@ -491,9 +482,8 @@ class NobugApp(App):
             old.terminate()  # unwind the in-flight run before launching a fresh one
         self.session = DebugSession(old.path, old.argv[1:], instrument=old.instrument)
         # Carry breakpoints and watches across the restart.
-        with old.breakpoints._lock, self.session.breakpoints._lock:
-            self.session.breakpoints._points = dict(old.breakpoints._points)
-        self.session.watches._exprs = list(old.watches._exprs)
+        self.session.breakpoints.restore(old.breakpoints.snapshot())
+        self.session.watches.restore(old.watches.snapshot())
         self.state = None
         self.running = True
         self.frame_index = 0

@@ -25,6 +25,14 @@ class Watches:
             if expr in self._exprs:
                 self._exprs.remove(expr)
 
+    def snapshot(self) -> list[str]:
+        with self._lock:
+            return list(self._exprs)
+
+    def restore(self, exprs: list[str]) -> None:
+        with self._lock:
+            self._exprs = list(exprs)
+
     def evaluate(self, frame) -> list[WatchValue]:
         """Resolve every pinned expression against *frame*'s namespaces."""
         with self._lock:
