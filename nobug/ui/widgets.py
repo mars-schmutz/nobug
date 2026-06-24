@@ -11,6 +11,9 @@ panel goes through them, so values render the same way everywhere.
 
 from __future__ import annotations
 
+from pygments import lex
+from pygments.lexers import PythonLexer
+from pygments.token import Comment, Keyword, Name, Number, String
 from rich.text import Text
 from textual.containers import VerticalScroll
 from textual.widgets import Static
@@ -21,6 +24,56 @@ from ..engine.state import ExprStep, FrameSnapshot, ValueRepr, WatchValue
 # Distinct colour for values already resolved on the in-line ("e") view, so
 # evaluated pieces stand out from the un-evaluated yellow rest of the line.
 EVALUATED_INLINE_STYLE = "bold green"
+
+# Source-view syntax palette, in the same named-colour vocabulary as the value
+# formatters below. Matched most-specific-first up the Pygments token hierarchy,
+# so a bare identifier (Name) falls through to the default foreground.
+SYNTAX_STYLES = {
+    Keyword: "magenta",
+    Keyword.Constant: "bold magenta",
+    Name.Function: "cyan",
+    Name.Class: "bold cyan",
+    Name.Builtin: "cyan",
+    Name.Decorator: "yellow",
+    String: "green",
+    Number: "yellow",
+    Comment: "dim",
+}
+
+# Row backgrounds for the cursor and paused-execution lines. They tint the row
+# rather than replacing the foreground, so syntax colours stay visible.
+CURSOR_BG = "on #2d2d3f"
+CURRENT_BG = "on #3a3320"
+
+
+def _token_style(tok) -> str:
+    for t in reversed(tok.split()):
+        style = SYNTAX_STYLES.get(t)
+        if style is not None:
+            return style
+    return ""
+
+
+def highlight_python(lines: list[str]) -> list[list[tuple[int, int, str]]]:
+    """Lex *lines* as Python into per-line ``(start, end, style)`` spans.
+
+    Run once per file load and cached, since the source re-renders on every
+    cursor move and step. Styles are foreground only; row backgrounds and the
+    debugger's own overlays paint on top at render time.
+    """
+    spans: list[list[tuple[int, int, str]]] = [[] for _ in lines]
+    row = col = 0
+    for tok, value in lex("\n".join(lines), PythonLexer()):
+        style = _token_style(tok)
+        for piece in value.splitlines(keepends=True):
+            word = piece.rstrip("\n")
+            if style and word and row < len(spans):
+                spans[row].append((col, col + len(word), style))
+            if piece.endswith("\n"):
+                row, col = row + 1, 0
+            else:
+                col += len(word)
+    return spans
 
 
 # --------------------------------------------------------------------------
@@ -250,6 +303,7 @@ class SourceView(VerticalScroll):
         self._body = Static("", expand=True)
         self.file: str = ""
         self.lines: list[str] = []
+        self._syntax: list[list[tuple[int, int, str]]] = []
         self.current_line: int | None = None
         self.cursor_line: int = 1
         self._breakpoints: set[int] = set()
@@ -266,6 +320,7 @@ class SourceView(VerticalScroll):
     def load(self, file: str, lines: list[str]) -> None:
         self.file = file
         self.lines = [ln.rstrip("\n") for ln in lines]
+        self._syntax = highlight_python(self.lines)
         self.cursor_line = min(self.cursor_line, max(1, len(self.lines)))
         self.render_source()
 
@@ -352,19 +407,25 @@ class SourceView(VerticalScroll):
                 text.append("\n")
                 continue
 
-            line_style = "reverse" if on_cursor else ""
-            if idx == self.current_line and not on_cursor:
-                line_style = "yellow"
+            row_bg = CURSOR_BG if on_cursor else (CURRENT_BG if idx == self.current_line else "")
+            spans = self._syntax_spans(idx, row_bg)
             if idx == self.current_line and self._next_span is not None:
                 col, end = self._next_span
                 if 0 <= col < end <= len(line):
-                    _paint_spans(text, line, line_style, [(col, end, "bold black on yellow")])
-                    text.append("\n")
-                    continue
+                    spans.append((col, end, "bold black on yellow"))
             # Pad empty lines with a space so the cursor/current highlight is
             # still visible on otherwise-blank lines.
-            text.append((line or " ") + "\n", style=line_style)
+            _paint_spans(text, line or " ", row_bg, spans)
+            text.append("\n")
         self._body.update(text)
+
+    def _syntax_spans(self, idx: int, row_bg: str) -> list[tuple[int, int, str]]:
+        """Token spans for line *idx*, each tinted with the row background so the
+        cursor/current highlight shows without dropping the syntax colour."""
+        cached = self._syntax[idx - 1] if idx - 1 < len(self._syntax) else []
+        if not row_bg:
+            return list(cached)
+        return [(s, e, f"{style} {row_bg}".strip()) for s, e, style in cached]
 
     def _scroll_to_focus(self) -> None:
         target = self.current_line or self.cursor_line
