@@ -32,10 +32,10 @@ class NobugApp(App):
     #expr { height: 14; }
     #watch { height: 1fr; }
     #stack { height: 1fr; }
-    #console { height: 8; border: round $panel-darken-1; padding: 0 1; }
-    #console:focus { border: round $accent; }
+    #console { height: 8; padding: 0 1; }
     #cmd { dock: bottom; display: none; border: round $accent; }
-    .panel { border: round $panel-darken-1; }
+    .panel { border: round $panel-lighten-2; border-title-color: $text-muted; border-title-style: bold; }
+    .panel:focus-within { border-title-color: $text; }
     .panel:focus { border: round $accent; }
     """
 
@@ -63,7 +63,7 @@ class NobugApp(App):
             with Vertical(id="right"):
                 yield SourceView(id="source", classes="panel")
                 yield InfoPanel("Expression", id="expr", classes="panel")
-        yield RichLog(id="console", highlight=False, markup=False, wrap=True)
+        yield RichLog(id="console", classes="panel", highlight=False, markup=False, wrap=True)
         yield Input(id="cmd")
 
     def on_mount(self) -> None:
