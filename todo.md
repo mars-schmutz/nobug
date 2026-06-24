@@ -1,4 +1,5 @@
-- swap watcher panel with stack panel
+- auto scroll to line in source panel when cursor moves or debugger steps
+- step to next line if pressing e at the end of all the evaluation
 
 # Eventual
 

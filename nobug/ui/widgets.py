@@ -428,6 +428,7 @@ class SourceView(VerticalScroll):
         return [(s, e, f"{style} {row_bg}".strip()) for s, e, style in cached]
 
     def _scroll_to_focus(self) -> None:
-        target = self.current_line or self.cursor_line
+        # cursor_line tracks both navigation and the paused line (set_current
+        # moves the cursor there), so it's the single thing to keep in view.
         height = self.size.height or 20
-        self.scroll_to(y=max(0, target - 1 - height // 2), animate=False)
+        self.scroll_to(y=max(0, self.cursor_line - 1 - height // 2), animate=False)
