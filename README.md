@@ -32,12 +32,12 @@ git pull
 uv tool install . --reinstall
 ```
 
-## Panels
+## UI
 
 - **Source**: File to debug.
 - **Expression**: the current line broken into its sub-expressions and their
   values (e.g. `subtotal + price → 100`), updated every step. Press `e` to
-  collapse the line in place, one sub-expression at a time (see below).
+  collapse the line in place.
 - **Watches**: pinned variables that re-evaluate each step.
 - **Stack / Locals**: the call stack and the selected frame's variables.
 - **Console**: the program's own stdout/stdin.
@@ -119,3 +119,4 @@ warns you when it spots this.
 - It would be nice to support different themes
 - Syntax highlighting
 - Save breakpoints to an sqlite db for convenience?
+- Evaluation support for `list` and `set` builtins
