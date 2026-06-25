@@ -184,7 +184,7 @@ class NobugApp(App):
         else:
             loc = self.session.path.rsplit("/", 1)[-1]
         self.query_one("#status", Static).update(
-            f" {loc}   [{mode}]   s:into n:over r:out c:cont b:bp  :cmd  ?:help q:quit"
+            f" {loc}   [{mode}]   s:into n:over r:out c:cont b:bp e:evaluate  :cmd  ?:help q:quit"
         )
 
     # -- key handling ----------------------------------------------------
