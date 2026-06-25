@@ -51,7 +51,7 @@ ENTER_COMMAND = ":"
 ENTER_SEARCH = "/"
 
 HELP_TEXT = """\
-nobug keys — debugger commands (pdb/gdb), then vim navigation
+nobug commands
 
   DEBUG CONTROL
     s  step into       n  step over      r  step out (return)
@@ -66,7 +66,7 @@ nobug keys — debugger commands (pdb/gdb), then vim navigation
     ctrl+w h/j/k/l     move focus between panels   Tab  cycle focus
     /  search          ctrl+n / ctrl+p  next/prev match
 
-  COMMAND BAR (:) — real pdb/gdb words
+  COMMAND BAR (:) 
     :break N [if C]   :clear N     :until [N]    :display E
     :undisplay E      :print E     :where /:bt   :run /:restart
     :open PATH        :q
