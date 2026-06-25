@@ -269,7 +269,8 @@ class NobugApp(App):
     def _act_eval_inline(self) -> None:
         """Resolve the current line in-line, one sub-expression per press.
 
-        One press past the last step clears the overlay back to the raw line.
+        One press past the last step reverts the overlay to the raw line and
+        steps over to the next line, like ``n``.
         """
         if not (self.running and self.state is not None and self.state.event == "line"):
             return
@@ -277,7 +278,10 @@ class NobugApp(App):
         if not steps:
             self.out.write("nothing to resolve in-line on this line")
             return
-        self._inline_step = 0 if self._inline_step >= len(steps) else self._inline_step + 1
+        if self._inline_step >= len(steps):
+            self.session.step_over()
+            return
+        self._inline_step += 1
         self._update_inline()
 
     def _update_inline(self) -> None:
